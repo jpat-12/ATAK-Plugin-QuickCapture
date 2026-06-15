@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">QuickCapture</string>
+    <!-- description -->
+    <string name="app_desc">ArcGIS QuickCapture projects and capture buttons inside ATAK.</string>
+
+
+
+
+</resources>

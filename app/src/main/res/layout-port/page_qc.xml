@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#181A1C">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp"
+        android:background="#111315">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="8dp">
+            <TextView android:id="@+id/qc_project_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="No project" android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold" android:ellipsize="end" android:maxLines="1"/>
+            <TextView android:id="@+id/qc_status_text" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Not connected" android:textColor="#AEB3B8" android:textSize="10sp" android:ellipsize="end" android:maxLines="1"/>
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/qc_url_edit"
+            android:layout_width="0dp"
+            android:layout_height="42dp"
+            android:layout_weight="2"
+            android:hint="Feature Service URL"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#747A80"
+            android:textSize="11sp"
+            android:singleLine="true"
+            android:background="@drawable/new_dark_button_bg"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:inputType="textUri"
+            android:layout_marginEnd="6dp"/>
+
+        <Button android:id="@+id/qc_scan_btn" android:layout_width="82dp" android:layout_height="42dp" android:text="SCAN QR" android:textColor="#DFB228" android:textSize="10sp" android:background="@drawable/new_dark_button_bg" android:layout_marginEnd="6dp"/>
+        <Button android:id="@+id/qc_connect_btn" android:layout_width="92dp" android:layout_height="42dp" android:text="CONNECT" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold" android:background="@drawable/new_dark_button_bg"/>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp">
+            <LinearLayout android:id="@+id/qc_form_section" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/fieldtak_panel_bg" android:padding="8dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SURVEY FIELDS" android:textColor="#DFB228" android:textSize="11sp" android:textStyle="bold" android:layout_marginEnd="16dp"/>
+                    <TextView android:id="@+id/qc_gps_text" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Captured at submit time" android:textColor="#AEB3B8" android:textSize="11sp"/>
+                    <Button android:id="@+id/qc_submit_btn" android:layout_width="150dp" android:layout_height="44dp" android:text="SUBMIT LOCATION" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold" android:background="@drawable/new_dark_button_bg"/>
+                </LinearLayout>
+                <LinearLayout android:id="@+id/qc_fields_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+            </LinearLayout>
+            <Button android:id="@+id/qc_disconnect_btn" android:layout_width="match_parent" android:layout_height="40dp" android:text="CLEAR PROJECT" android:textColor="#AEB3B8" android:textSize="11sp" android:background="@drawable/new_dark_button_bg" android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,47 @@
+# Build output
+build/
+app/build/
+**/build/
+
+# Gradle
+.gradle/
+# gradle-wrapper.jar is intentionally tracked — TAK.gov pipeline needs it to bootstrap
+local.properties
+*.local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Signing / secrets — never commit these
+*.jks
+*.keystore
+android_keystore
+release.properties
+signing.properties
+
+# Generated source
+app/src/main/gen/
+
+# ProGuard mapping (keep if you need crash symbolication; gitignore if not)
+app/build/proguard-civ-debug-mapping.txt
+
+# OS junk
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# TAK devkit — local paths only
+*.aar
+!.takdev/aars/takdevlint.aar
+
+# ATAK SDK main.jar — 31 MB, sourced from ATAK-CIV-SDK locally; not committed
+app/libs/main.jar
+
+# Logs
+*.log

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FieldTAK — QR scanner dialog layout -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Camera preview -->
+    <TextureView
+        android:id="@+id/qr_texture_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <!-- Overlay: scanning frame indicator -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- Viewfinder box -->
+        <FrameLayout
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:background="#33FFFFFF"/>
+    </LinearLayout>
+
+    <!-- Hint text at bottom -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="#88000000"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/qr_hint_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Point camera at QR code"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/qr_cancel_btn"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:text="Cancel"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:background="@drawable/new_dark_button_bg"/>
+    </LinearLayout>
+
+</FrameLayout>

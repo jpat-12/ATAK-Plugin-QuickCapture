@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FieldTAK — Incident icon dropper page -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- Page header -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Select an icon, then tap its location on the map"
+        android:textColor="#888888"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:padding="8dp"
+        android:background="#0D0D0D"/>
+
+    <!-- Icon grid — populated programmatically in FieldTakDropDownReceiver -->
+    <ScrollView
+        android:id="@+id/icons_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="6dp"
+        android:fillViewport="false">
+
+        <GridLayout
+            android:id="@+id/icons_grid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:useDefaultMargins="false"/>
+
+    </ScrollView>
+</LinearLayout>

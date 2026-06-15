@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FieldTAK — Topo (CALTopo/SARTopo PLI) page -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Status banner -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#0D0D0D"
+            android:padding="10dp"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/topo_status_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="● Not connected"
+                android:textColor="#F44336"
+                android:textSize="13sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/topo_last_report_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Last report: —"
+                android:textColor="#888888"
+                android:textSize="11sp"
+                android:layout_marginTop="2dp"
+                android:visibility="invisible"/>
+        </LinearLayout>
+
+        <!-- Scan QR button -->
+        <Button
+            android:id="@+id/topo_scan_qr_btn"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:text="📷  Scan CALTopo / SARTopo QR Code"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:background="@drawable/new_dark_button_bg"
+            android:layout_marginBottom="12dp"/>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#333333"
+            android:layout_marginBottom="12dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="— or enter manually —"
+            android:textColor="#888888"
+            android:textSize="11sp"
+            android:gravity="center"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Server spinner -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Server"
+            android:textColor="#DFB228"
+            android:textSize="11sp"
+            android:layout_marginBottom="2dp"/>
+
+        <Spinner
+            android:id="@+id/topo_server_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@drawable/new_dark_button_bg"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Map ID -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Map ID"
+            android:textColor="#DFB228"
+            android:textSize="11sp"
+            android:layout_marginBottom="2dp"/>
+
+        <EditText
+            android:id="@+id/topo_map_id_edit"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:hint="e.g. A1B2C"
+            android:inputType="textNoSuggestions"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#555555"
+            android:background="@drawable/new_dark_button_bg"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Connect Key -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Connect Key"
+            android:textColor="#DFB228"
+            android:textSize="11sp"
+            android:layout_marginBottom="2dp"/>
+
+        <EditText
+            android:id="@+id/topo_key_edit"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:hint="Paste connect key"
+            android:inputType="textNoSuggestions|textPassword"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#555555"
+            android:background="@drawable/new_dark_button_bg"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Report interval -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Report Interval"
+            android:textColor="#DFB228"
+            android:textSize="11sp"
+            android:layout_marginBottom="2dp"/>
+
+        <Spinner
+            android:id="@+id/topo_interval_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@drawable/new_dark_button_bg"
+            android:layout_marginBottom="14dp"/>
+
+        <!-- Connect button -->
+        <Button
+            android:id="@+id/topo_connect_btn"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Connect"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:background="@drawable/new_dark_button_bg"/>
+
+    </LinearLayout>
+</ScrollView>

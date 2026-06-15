@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="#08062F">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:background="#151719" android:padding="10dp">
+        <TextView android:id="@+id/qc_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="QuickCapture" android:textColor="#DFB228" android:textStyle="bold" android:textSize="18sp"/>
+        <TextView android:id="@+id/qc_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Scan a project QR code to begin" android:textColor="#B8BDC2" android:textSize="11sp"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/qc_setup_header" android:layout_width="match_parent"
+        android:layout_height="42dp" android:orientation="horizontal" android:gravity="center_vertical"
+        android:background="#111225" android:paddingLeft="12dp" android:paddingRight="12dp">
+        <TextView android:id="@+id/qc_setup_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:text="PROJECT SETUP" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="12sp"/>
+        <TextView android:id="@+id/qc_setup_toggle" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:text="▲" android:textColor="#FFFFFF" android:textSize="16sp"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/qc_setup_content" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical" android:background="#151719"
+        android:paddingLeft="10dp" android:paddingRight="10dp" android:paddingBottom="8dp">
+        <EditText android:id="@+id/qc_link" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="QuickCapture link, item ID, or FeatureServer URL" android:textColor="#FFFFFF"
+            android:textColorHint="#777777" android:textSize="11sp" android:inputType="textUri" android:singleLine="true"/>
+        <EditText android:id="@+id/qc_token" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="ArcGIS token (only for private projects)" android:textColor="#FFFFFF"
+            android:textColorHint="#777777" android:textSize="11sp" android:inputType="textPassword" android:singleLine="true"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <Button android:id="@+id/qc_scan" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="SCAN QR"/>
+            <Button android:id="@+id/qc_load" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="LOAD"/>
+            <Button android:id="@+id/qc_clear" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:text="CLEAR"/>
+        </LinearLayout>
+    </LinearLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <LinearLayout android:id="@+id/qc_project_area" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp"/>
+    </ScrollView>
+</LinearLayout>
