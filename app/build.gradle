@@ -294,10 +294,12 @@ def getCommandFlavor() {
 
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: '*.jar')
+    // main.jar is the ATAK SDK — compileOnly because ATAK provides it at runtime
+    compileOnly fileTree(dir: 'libs', include: ['main.jar'])
+    implementation fileTree(dir: 'libs', include: '*.jar', excludes: ['main.jar'])
     // ZXing — QR code scanning (camera2 + ZXing core, no external Activity needed)
     implementation 'com.google.zxing:core:3.5.3'
-    implementation 'com.caverock:androidsvg-aar:1.4'
+    // androidsvg-aar is already bundled in main.jar — do not re-declare
 
     testImplementation 'junit:junit:4.13.2'
 }
