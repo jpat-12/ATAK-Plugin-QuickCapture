@@ -16,6 +16,9 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -103,6 +106,49 @@ public final class ArcGisQuickCaptureClient {
         if (results == null || results.length() == 0 || !results.getJSONObject(0).optBoolean("success")) {
             throw new Exception("ArcGIS rejected the capture: " + response);
         }
+    }
+
+    public static final class FeatureRecord {
+        public final double lat;
+        public final double lon;
+        public final double alt;
+        public final long objectId;
+        public final JSONObject attributes;
+
+        FeatureRecord(double lat, double lon, double alt, long objectId, JSONObject attributes) {
+            this.lat = lat;
+            this.lon = lon;
+            this.alt = alt;
+            this.objectId = objectId;
+            this.attributes = attributes;
+        }
+    }
+
+    public List<FeatureRecord> queryFeatures(String layerUrl, String token) throws Exception {
+        String url = normalizeLayer(layerUrl) + "/query?where=1%3D1&outFields=*"
+                + "&returnGeometry=true&outSR=4326&f=json" + token(token);
+        JSONObject json = new JSONObject(get(url));
+        failOnArcGisError(json);
+        JSONArray features = json.optJSONArray("features");
+        if (features == null) return Collections.emptyList();
+        List<FeatureRecord> out = new ArrayList<>();
+        for (int i = 0; i < features.length(); i++) {
+            JSONObject feat = features.getJSONObject(i);
+            JSONObject geom = feat.optJSONObject("geometry");
+            JSONObject attrs = feat.optJSONObject("attributes");
+            if (geom == null) continue;
+            double x = geom.optDouble("x", Double.NaN);
+            double y = geom.optDouble("y", Double.NaN);
+            if (Double.isNaN(x) || Double.isNaN(y)) continue;
+            long oid = -1;
+            if (attrs != null) {
+                oid = attrs.optLong("OBJECTID", attrs.optLong("objectid",
+                        attrs.optLong("FID", -1)));
+            }
+            out.add(new FeatureRecord(y, x, geom.optDouble("z", 0), oid,
+                    attrs != null ? attrs : new JSONObject()));
+        }
+        return out;
     }
 
     private String itemId(String source) {

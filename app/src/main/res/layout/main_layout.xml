@@ -4,13 +4,21 @@
     android:orientation="vertical" android:background="#08062F">
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="vertical" android:background="#151719" android:padding="10dp">
-        <TextView android:id="@+id/qc_title" android:layout_width="match_parent"
+        android:orientation="horizontal" android:background="#151719"
+        android:padding="10dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/qc_title" android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content" android:text="QuickCapture" android:textColor="#DFB228"
             android:textStyle="bold" android:textSize="18sp"/>
-        <TextView android:id="@+id/qc_status" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:text="Scan a project QR code to begin"
-            android:textColor="#B8BDC2" android:textSize="11sp"/>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="end">
+            <TextView android:id="@+id/qc_count" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:textColor="#2ECC71"
+                android:textStyle="bold" android:textSize="15sp"
+                android:gravity="end" android:visibility="gone"/>
+            <TextView android:id="@+id/qc_status" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Scan a project QR code to begin"
+                android:textColor="#B8BDC2" android:textSize="13sp" android:gravity="end"/>
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout android:id="@+id/qc_setup_header" android:layout_width="match_parent"
@@ -42,6 +50,8 @@
                 android:layout_weight="1" android:text="LOAD"/>
             <Button android:id="@+id/qc_clear" android:layout_width="0dp" android:layout_height="44dp"
                 android:layout_weight="1" android:text="CLEAR"/>
+            <Button android:id="@+id/qc_sync" android:layout_width="0dp" android:layout_height="44dp"
+                android:layout_weight="1" android:text="SYNC"/>
         </LinearLayout>
     </LinearLayout>
 
