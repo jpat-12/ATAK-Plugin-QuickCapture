@@ -2,6 +2,7 @@
 build/
 app/build/
 **/build/
+dist/
 
 # Gradle
 .gradle/
@@ -19,9 +20,20 @@ local.properties
 # Signing / secrets — never commit these
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pem
 android_keystore
 release.properties
 signing.properties
+
+# Environment / credential files
+.env
+.env.*
+*.env
+credentials.json
+token.json
+secrets.properties
 
 # Generated source
 app/src/main/gen/
@@ -41,6 +53,7 @@ Desktop.ini
 !.takdev/aars/takdevlint.aar
 
 # ATAK SDK main.jar — 31 MB, sourced from ATAK-CIV-SDK locally; not committed
+main.jar
 app/libs/main.jar
 
 # Logs
