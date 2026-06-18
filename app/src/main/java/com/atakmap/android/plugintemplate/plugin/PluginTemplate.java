@@ -5,6 +5,7 @@ import android.content.Context;
 
 import com.atak.plugins.impl.PluginContextProvider;
 import com.atak.plugins.impl.PluginLayoutInflater;
+import com.atakmap.android.quickcapture.plugin.R;
 
 import gov.tak.api.plugin.IPlugin;
 import gov.tak.api.plugin.IServiceController;

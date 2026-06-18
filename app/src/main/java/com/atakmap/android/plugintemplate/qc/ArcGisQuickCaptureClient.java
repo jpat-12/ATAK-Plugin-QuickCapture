@@ -92,7 +92,8 @@ public final class ArcGisQuickCaptureClient {
         return null;
     }
 
-    public void addFeature(String layerUrl, String token, GeoPoint point, JSONObject attributes)
+    /** Adds a feature and returns the new OBJECTID assigned by the server. */
+    public long addFeature(String layerUrl, String token, GeoPoint point, JSONObject attributes)
             throws Exception {
         JSONObject geometry = new JSONObject().put("x", point.getLongitude()).put("y", point.getLatitude())
                 .put("spatialReference", new JSONObject().put("wkid", 4326));
@@ -106,6 +107,28 @@ public final class ArcGisQuickCaptureClient {
         if (results == null || results.length() == 0 || !results.getJSONObject(0).optBoolean("success")) {
             throw new Exception("ArcGIS rejected the capture: " + response);
         }
+        return results.getJSONObject(0).optLong("objectId", -1);
+    }
+
+    /** Updates an existing feature's geometry (and optionally attributes) on the server. */
+    public void updateFeature(String layerUrl, String token, long objectId,
+                               GeoPoint point, JSONObject attributes) throws Exception {
+        JSONObject geometry = new JSONObject().put("x", point.getLongitude()).put("y", point.getLatitude())
+                .put("spatialReference", new JSONObject().put("wkid", 4326));
+        if (!Double.isNaN(point.getAltitude())) geometry.put("z", point.getAltitude());
+        JSONObject attrs = new JSONObject();
+        attrs.put("OBJECTID", objectId);
+        // Merge any provided attributes
+        java.util.Iterator<String> keys = attributes.keys();
+        while (keys.hasNext()) {
+            String k = keys.next();
+            attrs.put(k, attributes.get(k));
+        }
+        JSONArray features = new JSONArray().put(new JSONObject()
+                .put("geometry", geometry).put("attributes", attrs));
+        String body = "f=json&features=" + enc(features.toString()) + token(token);
+        JSONObject response = new JSONObject(post(normalizeLayer(layerUrl) + "/updateFeatures", body));
+        failOnArcGisError(response);
     }
 
     public static final class FeatureRecord {
