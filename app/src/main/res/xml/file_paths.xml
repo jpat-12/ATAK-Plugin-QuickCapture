@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!--
+        Exposes files under Context.getExternalFilesDir(DIRECTORY_PICTURES)/QuickCapture/
+        as content:// URIs via FileProvider.  Used for camera capture temp files.
+    -->
+    <external-files-path
+        name="captured_photos"
+        path="Pictures/QuickCapture/" />
+</paths>

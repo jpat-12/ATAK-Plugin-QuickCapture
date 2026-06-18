@@ -1,5 +1,6 @@
 package com.atakmap.android.plugintemplate.qc;
 
+import android.content.Context;
 import android.net.Uri;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -172,6 +173,82 @@ public final class ArcGisQuickCaptureClient {
                     attrs != null ? attrs : new JSONObject()));
         }
         return out;
+    }
+
+    /**
+     * Returns true if the feature layer at {@code layerUrl} has attachments enabled.
+     * Issues a lightweight GET to the layer definition endpoint.
+     */
+    public boolean fetchHasAttachments(String layerUrl) {
+        try {
+            JSONObject json = new JSONObject(get(normalizeLayer(layerUrl) + "?f=json"));
+            return json.optBoolean("hasAttachments", false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static final String CRLF = "\r\n";
+
+    /**
+     * Uploads a photo as an attachment to an existing feature identified by {@code objectId}.
+     * Must be called after {@link #addFeature} so the OBJECTID is known.
+     *
+     * @return true if the server confirmed success; false otherwise.
+     */
+    public boolean addAttachment(String layerUrl, String token, long objectId,
+                                 Uri photoUri, Context context) throws Exception {
+        String url = normalizeLayer(layerUrl) + "/" + objectId + "/addAttachment";
+        String boundary = "QcPlugin" + System.currentTimeMillis();
+
+        HttpURLConnection conn = open(url, "POST");
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+        try (OutputStream out = conn.getOutputStream()) {
+            writeFormPart(out, boundary, "f", "json");
+            if (token != null && !token.isEmpty()) {
+                writeFormPart(out, boundary, "token", token);
+            }
+            writeFilePart(out, boundary, "attachment",
+                    PhotoAttachmentManager.getFilename(context, photoUri),
+                    PhotoAttachmentManager.getMimeType(context, photoUri),
+                    photoUri, context);
+            out.write(("--" + boundary + "--" + CRLF).getBytes(StandardCharsets.UTF_8));
+        }
+
+        String response = read(conn);
+        JSONObject json = new JSONObject(response);
+        failOnArcGisError(json);
+        JSONObject result = json.optJSONObject("addAttachmentResult");
+        return result != null && result.optBoolean("success");
+    }
+
+    private void writeFormPart(OutputStream out, String boundary,
+                               String name, String value) throws java.io.IOException {
+        String header = "--" + boundary + CRLF
+                + "Content-Disposition: form-data; name=\"" + name + "\"" + CRLF + CRLF;
+        out.write(header.getBytes(StandardCharsets.UTF_8));
+        out.write(value.getBytes(StandardCharsets.UTF_8));
+        out.write(CRLF.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void writeFilePart(OutputStream out, String boundary, String fieldName,
+                               String filename, String mime,
+                               Uri uri, Context context) throws java.io.IOException {
+        String header = "--" + boundary + CRLF
+                + "Content-Disposition: form-data; name=\"" + fieldName
+                + "\"; filename=\"" + filename + "\"" + CRLF
+                + "Content-Type: " + mime + CRLF + CRLF;
+        out.write(header.getBytes(StandardCharsets.UTF_8));
+        try (InputStream in = context.getContentResolver().openInputStream(uri)) {
+            if (in != null) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) >= 0) out.write(buf, 0, n);
+            }
+        }
+        out.write(CRLF.getBytes(StandardCharsets.UTF_8));
     }
 
     private String itemId(String source) {

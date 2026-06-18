@@ -56,5 +56,9 @@ Desktop.ini
 main.jar
 app/libs/main.jar
 
+# APK files — binaries; distribute via releases, not source control
+*.apk
+*.aab
+
 # Logs
 *.log

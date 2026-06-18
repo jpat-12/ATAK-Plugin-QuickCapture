@@ -4,7 +4,7 @@
 
     <extension
         type="gov.tak.api.plugin.IPlugin"
-        impl="com.atakmap.android.plugintemplate.plugin.FieldTakLifecycle"
+        impl="com.atakmap.android.plugintemplate.plugin.QuickCaptureLifecycle"
         singleton="true" />
 
 </plugin>
