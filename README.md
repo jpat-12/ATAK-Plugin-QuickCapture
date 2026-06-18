@@ -1,5 +1,7 @@
 # QuickCapture
 
+[![Release v1.5.0](https://img.shields.io/badge/Release-v1.5.0-blue?style=for-the-badge)](https://github.com/jpat-12/ATAK-Plugin-QuickCapture/releases/tag/v1.5.0)
+
 ATAK CIV 5.6 plugin that downloads ArcGIS QuickCapture project definitions and
 renders their capture-button interface in an ATAK half-screen dropdown.
 
