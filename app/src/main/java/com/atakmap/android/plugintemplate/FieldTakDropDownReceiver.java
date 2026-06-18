@@ -31,7 +31,6 @@ import com.atakmap.android.cot.CotMapComponent;
 import com.atakmap.android.dropdown.DropDown.OnStateListener;
 import com.atakmap.android.ipc.AtakBroadcast;
 import com.atakmap.android.dropdown.DropDownReceiver;
-import com.atakmap.android.icons.UserIcon;
 import com.atakmap.android.importfiles.sort.ImportUserIconSetSort;
 import com.atakmap.android.maps.MapEvent;
 import com.atakmap.android.maps.MapEventDispatcher;
@@ -413,11 +412,24 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
             }
             // Build the iconset ZIP in memory while still on the background thread
             final byte[] zipBytes = buildIconsetZipBytes(uid, proj.title);
-            // Compute sqlite:// URIs for immediate Marker icon use
+            // Write PNGs to disk so setIcon() can use file:// URIs — these work immediately
+            // without requiring the iconset to be in ATAK's DB, avoiding the race where
+            // ATAK's CoT archive processor overrides setIcon() with a dot.
+            File iconDir = new File(
+                    android.os.Environment.getExternalStorageDirectory(),
+                    "atak/tools/quickcapture/" + uid);
+            //noinspection ResultOfMethodCallIgnored
+            iconDir.mkdirs();
             Map<String, String> uris = new LinkedHashMap<>();
             for (Map.Entry<String, String> e : templateFilenames.entrySet()) {
-                uris.put(e.getKey(),
-                        UserIcon.IconsetPath + UserIcon.GetIconsetPath(uid, "QuickCapture", e.getValue()));
+                String filename = e.getValue();
+                byte[] bytes = iconsetPngBytes.get(filename);
+                if (bytes != null) {
+                    File f = new File(iconDir, filename);
+                    try (FileOutputStream fos = new FileOutputStream(f)) { fos.write(bytes); }
+                    catch (Exception ignored) {}
+                    uris.put(e.getKey(), "file://" + f.getAbsolutePath());
+                }
             }
             getMapView().post(() -> {
                 templateIconUris.putAll(uris);
@@ -488,9 +500,6 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
                         importer.beginImport(zipFile);
                         AtakBroadcast.getInstance().sendBroadcast(
                                 new android.content.Intent("com.atakmap.app.REFRESH_ICONSET"));
-                        // Re-apply icons to any markers already on the map — REFRESH_ICONSET
-                        // populates ATAK's bitmap cache; the delay lets it finish before we read it
-                        getMapView().postDelayed(this::refreshAllMarkerIcons, 500);
                     } catch (Exception ignored) {}
                 }))
                 .setNegativeButton("Skip", null)
@@ -505,39 +514,6 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
                     .setImageUri(Icon.STATE_DEFAULT, path)
                     .build());
         } catch (Exception ignored) {}
-    }
-
-    /** Re-applies sqlite:// icons to all live markers after an iconset import. */
-    private void refreshAllMarkerIcons() {
-        // Temp markers: tracked by templateId → CoT UID
-        for (Map.Entry<String, String> e : tempMarkerUids.entrySet()) {
-            String iconUri = templateIconUris.get(e.getKey());
-            if (iconUri == null) continue;
-            MapItem item = getMapView().getRootGroup().deepFindUID(e.getValue());
-            if (item instanceof Marker) {
-                try {
-                    ((Marker) item).setIcon(new Icon.Builder()
-                            .setImageUri(Icon.STATE_DEFAULT, iconUri)
-                            .build());
-                } catch (Exception ignored) {}
-            }
-        }
-        // Synced layer markers: uid is "qcl-{templateId}-{objectId}"
-        for (Map.Entry<String, Marker> e : layerMarkers.entrySet()) {
-            String uid = e.getKey();
-            if (!uid.startsWith("qcl-")) continue;
-            String rest = uid.substring(4);
-            int dash = rest.lastIndexOf('-');
-            if (dash < 0) continue;
-            String templateId = rest.substring(0, dash);
-            String iconUri = templateIconUris.get(templateId);
-            if (iconUri == null) continue;
-            try {
-                e.getValue().setIcon(new Icon.Builder()
-                        .setImageUri(Icon.STATE_DEFAULT, iconUri)
-                        .build());
-            } catch (Exception ignored) {}
-        }
     }
 
     private static String extractIconsetUid(String source, String itemId) {
