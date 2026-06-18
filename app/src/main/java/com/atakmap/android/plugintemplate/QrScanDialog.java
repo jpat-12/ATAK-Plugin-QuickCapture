@@ -30,7 +30,7 @@ import android.view.Window;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.atakmap.android.plugintemplate.plugin.R;
+import com.atakmap.android.quickcapture.plugin.R;
 import com.atakmap.coremap.log.Log;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.MultiFormatReader;

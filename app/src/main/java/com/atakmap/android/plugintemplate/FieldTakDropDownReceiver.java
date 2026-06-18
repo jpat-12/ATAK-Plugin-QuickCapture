@@ -27,21 +27,26 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.atak.plugins.impl.PluginLayoutInflater;
+import com.atakmap.android.cot.CotMapComponent;
 import com.atakmap.android.dropdown.DropDown.OnStateListener;
+import com.atakmap.android.ipc.AtakBroadcast;
 import com.atakmap.android.dropdown.DropDownReceiver;
-import com.atakmap.android.icons.UserIcon;
-import com.atakmap.android.icons.UserIconDatabase;
-import com.atakmap.android.icons.UserIconSet;
+import com.atakmap.android.importfiles.sort.ImportUserIconSetSort;
 import com.atakmap.android.maps.MapEvent;
 import com.atakmap.android.maps.MapEventDispatcher;
+import com.atakmap.android.maps.MapItem;
 import com.atakmap.android.maps.MapView;
 import com.atakmap.android.maps.Marker;
-import com.atakmap.android.plugintemplate.plugin.R;
+import com.atakmap.android.quickcapture.plugin.R;
 import com.atakmap.android.plugintemplate.qc.ArcGisQuickCaptureClient;
 import com.atakmap.android.plugintemplate.qc.QuickCaptureProject;
+import com.atakmap.coremap.cot.event.CotDetail;
+import com.atakmap.coremap.cot.event.CotEvent;
+import com.atakmap.coremap.cot.event.CotPoint;
 import com.atakmap.coremap.maps.assets.Icon;
 import com.atakmap.coremap.maps.coords.GeoPoint;
 import com.atakmap.coremap.maps.coords.GeoPointMetaData;
+import com.atakmap.coremap.maps.time.CoordinatedTime;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -63,7 +68,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStateListener {
-    public static final String SHOW = "com.atakmap.android.plugintemplate.SHOW_FIELDTAK";
+    public static final String SHOW = "com.atakmap.android.quickcapture.SHOW_PLUGIN";
 
     private final Context pluginContext;
     private final View root;
@@ -83,10 +88,15 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
     private QuickCaptureProject project;
     private final Map<String, Object> projectInputValues = new LinkedHashMap<>();
     private final Map<String, Marker> layerMarkers = new LinkedHashMap<>();
-    private final Map<String, Marker> tempMarkers = new LinkedHashMap<>();
+    /** templateId → CoT UID of the immediate-feedback temp marker */
+    private final Map<String, String> tempMarkerUids = new LinkedHashMap<>();
+    /** CoT UID → ArcGIS OBJECTID, for syncing edits back to the feature layer */
+    private final Map<String, Long> markerObjectIds = new LinkedHashMap<>();
+    /** CoT UID → feature layer URL, so we know which layer to update */
+    private final Map<String, String> markerLayerUrls = new LinkedHashMap<>();
+    private MapEventDispatcher.MapEventDispatchListener dragSyncListener;
     private final Map<String, View> checkmarks = new LinkedHashMap<>();
     private final Map<String, String> templateIconUris = new LinkedHashMap<>();
-    // Iconset zip state — rebuilt each time a template icon is downloaded
     private String projectIconsetUid = null;
     private final Map<String, byte[]> iconsetPngBytes = new LinkedHashMap<>();  // filename → PNG
     private final Map<String, String> templateFilenames = new LinkedHashMap<>(); // templateId → filename
@@ -115,6 +125,23 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         root.findViewById(R.id.qc_sync).setOnClickListener(v -> syncAll());
         setRetain(true);
         restore();
+        dragSyncListener = event -> {
+            MapItem item = event.getItem();
+            if (item == null) return;
+            String uid = item.getUID();
+            Long objectId = markerObjectIds.get(uid);
+            String layerUrl = markerLayerUrls.get(uid);
+            if (objectId == null || layerUrl == null || !(item instanceof Marker)) return;
+            GeoPoint pt = ((Marker) item).getPoint();
+            final String token = tokenEdit.getText().toString().trim();
+            worker.execute(() -> {
+                try {
+                    client.updateFeature(layerUrl, token, objectId, pt, new JSONObject());
+                } catch (Exception ignored) {}
+            });
+        };
+        getMapView().getMapEventDispatcher().addMapEventListener(
+                MapEvent.ITEM_DRAG_DROPPED, dragSyncListener);
     }
 
     @Override
@@ -356,24 +383,26 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         dialog.show();
     }
 
-    /**
-     * Downloads every template icon for the loaded project, builds a single iconset zip,
-     * imports it into ATAK's UserIconDatabase, then updates all button drawables and
-     * templateIconUris in one UI pass.
-     */
+    /** Downloads all template icons, then prompts the user to import the iconset into ATAK. */
     private void loadAllIcons(Map<String, Button> buttons) {
         final QuickCaptureProject proj = project;
         final String uid = projectIconsetUid;
         if (proj == null || uid == null) return;
         final String token = tokenEdit.getText().toString().trim();
         iconWorker.execute(() -> {
-            // Download every icon and convert to PNG bytes
             Map<String, android.graphics.Bitmap> bitmaps = new LinkedHashMap<>();
             for (QuickCaptureProject.Template t : proj.templates) {
                 if (t.image == null || t.image.isEmpty()) continue;
                 if (proj.isReferenceLink(t)) continue;
-                android.graphics.Bitmap bm = client.downloadTemplateIcon(proj, t, token, dp(64));
+                android.graphics.Bitmap bm = client.downloadTemplateIcon(proj, t, token, 32);
                 if (bm == null) continue;
+                // Normalize to exactly 32×32 — ATAK iconsets expect this size
+                if (bm.getWidth() != 32 || bm.getHeight() != 32) {
+                    android.graphics.Bitmap scaled =
+                            android.graphics.Bitmap.createScaledBitmap(bm, 32, 32, true);
+                    bm.recycle();
+                    bm = scaled;
+                }
                 String filename = t.image.replaceAll("(?i)\\.svg$", ".png").replace("/", "_");
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 if (!bm.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, baos)) continue;
@@ -381,15 +410,27 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
                 templateFilenames.put(t.id, filename);
                 bitmaps.put(t.id, bm);
             }
-            // Build zip and import into ATAK — one shot for all icons
-            rebuildAndImportIconset();
-            // Compute sqlite:// URIs now that the iconset is registered
+            // Build the iconset ZIP in memory while still on the background thread
+            final byte[] zipBytes = buildIconsetZipBytes(uid, proj.title);
+            // Write PNGs to disk so setIcon() can use file:// URIs — these work immediately
+            // without requiring the iconset to be in ATAK's DB, avoiding the race where
+            // ATAK's CoT archive processor overrides setIcon() with a dot.
+            File iconDir = new File(
+                    android.os.Environment.getExternalStorageDirectory(),
+                    "atak/tools/quickcapture/" + uid);
+            //noinspection ResultOfMethodCallIgnored
+            iconDir.mkdirs();
             Map<String, String> uris = new LinkedHashMap<>();
             for (Map.Entry<String, String> e : templateFilenames.entrySet()) {
-                uris.put(e.getKey(),
-                        UserIcon.IconsetPath + UserIcon.GetIconsetPath(uid, "QuickCapture", e.getValue()));
+                String filename = e.getValue();
+                byte[] bytes = iconsetPngBytes.get(filename);
+                if (bytes != null) {
+                    File f = new File(iconDir, filename);
+                    try (FileOutputStream fos = new FileOutputStream(f)) { fos.write(bytes); }
+                    catch (Exception ignored) {}
+                    uris.put(e.getKey(), "file://" + f.getAbsolutePath());
+                }
             }
-            // Update UI: store URIs and set button drawables
             getMapView().post(() -> {
                 templateIconUris.putAll(uris);
                 for (Map.Entry<String, android.graphics.Bitmap> e : bitmaps.entrySet()) {
@@ -400,64 +441,69 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
                     btn.setCompoundDrawables(null, drawable, null, null);
                     btn.setCompoundDrawablePadding(dp(5));
                 }
+                if (zipBytes != null) {
+                    promptIconsetImport(proj.title, uid, zipBytes);
+                }
             });
         });
     }
 
-    /** Builds the iconset zip from all collected icons and imports it into ATAK's UserIconDatabase. */
-    private void rebuildAndImportIconset() {
-        String uid = projectIconsetUid;
-        if (uid == null || iconsetPngBytes.isEmpty()) return;
+    private byte[] buildIconsetZipBytes(String uid, String projectTitle) {
+        if (iconsetPngBytes.isEmpty()) return null;
         try {
-            String name = project != null ? project.title : "QuickCapture";
-            // Build iconset.xml
+            String name = projectTitle != null && !projectTitle.isEmpty() ? projectTitle : "QuickCapture";
             StringBuilder xml = new StringBuilder();
-            xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-               .append("<iconset name=\"").append(xmlEscape(name)).append("\"")
-               .append(" uid=\"").append(xmlEscape(uid)).append("\"")
+            xml.append("<iconset name=\"").append(xmlEscape(name)).append("\"")
+               .append(" uid=\"").append(uid).append("\"")
                .append(" defaultGroup=\"QuickCapture\"")
                .append(" skipResize=\"false\" version=\"1\">\n");
             for (String filename : iconsetPngBytes.keySet()) {
                 xml.append("  <icon name=\"").append(xmlEscape(filename)).append("\" />\n");
             }
-            xml.append("</iconset>\n");
-            // Build zip in memory
+            xml.append("</iconset>");
+
             ByteArrayOutputStream zipBuf = new ByteArrayOutputStream();
             try (ZipOutputStream zos = new ZipOutputStream(zipBuf)) {
-                ZipEntry xmlEntry = new ZipEntry("iconset.xml");
-                zos.putNextEntry(xmlEntry);
+                zos.putNextEntry(new ZipEntry("iconset.xml"));
                 zos.write(xml.toString().getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
                 for (Map.Entry<String, byte[]> e : iconsetPngBytes.entrySet()) {
-                    ZipEntry iconEntry = new ZipEntry("QuickCapture/" + e.getKey());
-                    zos.putNextEntry(iconEntry);
+                    zos.putNextEntry(new ZipEntry("QuickCapture/" + e.getKey()));
                     zos.write(e.getValue());
                     zos.closeEntry();
                 }
             }
-            // Write zip to ATAK's own files dir (renderer can access this)
-            File zipFile = new File(getMapView().getContext().getFilesDir(),
-                    "qc_iconset_" + uid + ".zip");
-            try (FileOutputStream fos = new FileOutputStream(zipFile)) {
-                fos.write(zipBuf.toByteArray());
-            }
-            // Import via ATAK's own iconset parser
-            UserIconDatabase db = UserIconDatabase.instance(getMapView().getContext());
-            try { db.removeIconSet(uid); } catch (Exception ignored) {}
-            UserIconSet iconset = UserIconSet.loadUserIconSet(zipFile.getAbsolutePath());
-            if (iconset != null) {
-                try { db.addIconSet(iconset); } catch (Exception ignored) {}
-                // addIconSet may or may not persist icon rows — also call addIcon for each
-                List<UserIcon> icons = iconset.getIcons();
-                if (icons != null) {
-                    for (UserIcon icon : icons) {
-                        byte[] bytes = iconsetPngBytes.get(icon.getFileName());
-                        if (bytes == null) continue;
-                        try { db.addIcon(icon, bytes); } catch (Exception ignored) {}
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
+            return zipBuf.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void promptIconsetImport(String projectName, String uid, byte[] zipBytes) {
+        new AlertDialog.Builder(getMapView().getContext())
+                .setTitle("Import Iconset")
+                .setMessage("Import \"" + projectName + "\" icons into ATAK's icon library?")
+                .setPositiveButton("Import", (d, w) -> iconWorker.execute(() -> {
+                    try {
+                        File dir = new File(
+                                android.os.Environment.getExternalStorageDirectory(), "atak/iconsets");
+                        //noinspection ResultOfMethodCallIgnored
+                        dir.mkdirs();
+                        File zipFile = new File(dir, "QC-" + uid + ".zip");
+                        try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+                            fos.write(zipBytes);
+                        }
+                        // Use ATAK's native iconset import pipeline — same code path as
+                        // the "Add Iconset" button in the Iconset Manager
+                        ImportUserIconSetSort importer =
+                                new ImportUserIconSetSort(getMapView().getContext(), false);
+                        importer.beginImport(zipFile);
+                        AtakBroadcast.getInstance().sendBroadcast(
+                                new android.content.Intent("com.atakmap.app.REFRESH_ICONSET"));
+                    } catch (Exception ignored) {}
+                }))
+                .setNegativeButton("Skip", null)
+                .show();
     }
 
     private void applyTemplateIcon(Marker m, QuickCaptureProject.Template template) {
@@ -470,24 +516,19 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         } catch (Exception ignored) {}
     }
 
-    /** Extracts the iconset UID from the QuickCapture source URL. */
     private static String extractIconsetUid(String source, String itemId) {
-        if (source != null && !source.trim().isEmpty()) {
-            try {
-                String path = new java.net.URL(source.trim()).getPath();
-                if (path != null) {
-                    String[] parts = path.split("/");
-                    for (int i = parts.length - 1; i >= 0; i--) {
-                        String seg = parts[i].replaceAll("[^a-zA-Z0-9_-]", "");
-                        if (seg.length() >= 3 && !seg.toLowerCase(Locale.US).endsWith("html")) {
-                            return seg;
-                        }
-                    }
-                }
-            } catch (Exception ignored) {}
+        if (itemId != null && itemId.matches("[0-9a-f]{32}")) return itemId;
+        String key = (itemId != null && !itemId.isEmpty()) ? itemId
+                   : (source != null && !source.trim().isEmpty() ? source.trim() : "quickcapture");
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("MD5")
+                    .digest(key.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(32);
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (Exception ignored) {
+            return "00000000000000000000000000000001";
         }
-        if (itemId != null && !itemId.isEmpty()) return itemId;
-        return "qc-plugin";
     }
 
     private static String xmlEscape(String s) {
@@ -533,7 +574,7 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
             try {
                 JSONObject attributes = activeProject.resolveAttributes(template, inputs, callsign, point);
                 String layerUrl = activeProject.urlFor(template);
-                client.addFeature(layerUrl, token, point, attributes);
+                final long objectId = client.addFeature(layerUrl, token, point, attributes);
                 getMapView().post(() -> {
                     String time = new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date());
                     status.setText("Captured " + template.label + " at " + time);
@@ -541,7 +582,7 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
                     qcCount.setText(captureCount + (captureCount == 1 ? " pt" : " pts"));
                     qcCount.setVisibility(View.VISIBLE);
                     toast(template.label + " captured at " + time);
-                    dropMarker(template, point);
+                    dropMarker(template, point, objectId, layerUrl);
                     showCheckmark(template);
                 });
                 // Pull the full layer — confirms capture and shows all team captures
@@ -601,22 +642,90 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         pendingInputs   = null;
     }
 
-    private void dropMarker(QuickCaptureProject.Template template, GeoPoint point) {
-        // Replace any previous temp marker for this template — sync will be the authoritative record
-        Marker old = tempMarkers.remove(template.id);
-        if (old != null) getMapView().getRootGroup().removeItem(old);
+    private void dropMarker(QuickCaptureProject.Template template, GeoPoint point,
+                             long objectId, String layerUrl) {
+        // Replace any previous temp marker for this template
+        String oldUid = tempMarkerUids.remove(template.id);
+        if (oldUid != null) {
+            markerObjectIds.remove(oldUid);
+            markerLayerUrls.remove(oldUid);
+            dispatchCotDelete(oldUid);
+        }
         try {
-            Marker m = new Marker(point, "qc-" + UUID.randomUUID());
-            m.setType("a-f-G-U-C");
-            m.setTitle("QC: " + template.label);
-            m.setMetaString("callsign", "QC: " + template.label);
-            m.setMetaInteger("color", parseColor(template.color, "#078FC5"));
-            m.setMetaString("remarks", "QuickCapture: " + template.label
+            String uid = "qc-" + UUID.randomUUID();
+            tempMarkerUids.put(template.id, uid);
+            if (objectId >= 0) markerObjectIds.put(uid, objectId);
+            if (layerUrl != null) markerLayerUrls.put(uid, layerUrl);
+
+            CoordinatedTime now = new CoordinatedTime();
+            // Stale after 5 hours — long enough to survive a session
+            CoordinatedTime stale = new CoordinatedTime(now.getMilliseconds() + 5L * 60 * 60 * 1000);
+
+            CotEvent event = new CotEvent();
+            event.setUID(uid);
+            event.setType("a-f-G-U-C");
+            event.setHow("m-g");
+            event.setTime(now);
+            event.setStart(now);
+            event.setStale(stale);
+            double hae = Double.isNaN(point.getAltitude()) ? CotPoint.UNKNOWN : point.getAltitude();
+            event.setPoint(new CotPoint(point.getLatitude(), point.getLongitude(),
+                    hae, CotPoint.UNKNOWN, CotPoint.UNKNOWN));
+
+            CotDetail detail = new CotDetail();
+
+            CotDetail contact = new CotDetail("contact");
+            contact.setAttribute("callsign", "QC: " + template.label);
+            detail.addChild(contact);
+
+            CotDetail remarks = new CotDetail("remarks");
+            remarks.setInnerText("QuickCapture: " + template.label
                     + " at " + new SimpleDateFormat("HH:mm", Locale.US).format(new Date()));
-            m.setMetaBoolean("removable", true);
-            applyTemplateIcon(m, template);
-            getMapView().getRootGroup().addItem(m);
-            tempMarkers.put(template.id, m);
+            detail.addChild(remarks);
+
+            // Custom icon via the imported iconset
+            String filename = templateFilenames.get(template.id);
+            if (filename != null && projectIconsetUid != null) {
+                CotDetail usericon = new CotDetail("usericon");
+                usericon.setAttribute("iconsetpath",
+                        projectIconsetUid + "/QuickCapture/" + filename);
+                detail.addChild(usericon);
+            }
+
+            // Persist this marker across ATAK restarts
+            detail.addChild(new CotDetail("archive"));
+
+            event.setDetail(detail);
+            CotMapComponent.getInstance().getInternalDispatcher().dispatch(event, null);
+
+            // The internal dispatcher processes synchronously on the main thread, so the
+            // Marker already exists in the map group. Set its icon directly using the
+            // sqlite:// URI — this doesn't depend on the iconset DB import completing first.
+            String iconUri = templateIconUris.get(template.id);
+            if (iconUri != null) {
+                MapItem item = getMapView().getRootGroup().deepFindUID(uid);
+                if (item instanceof Marker) {
+                    ((Marker) item).setIcon(new Icon.Builder()
+                            .setImageUri(Icon.STATE_DEFAULT, iconUri)
+                            .build());
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void dispatchCotDelete(String uid) {
+        try {
+            CoordinatedTime now = new CoordinatedTime();
+            CotEvent event = new CotEvent();
+            event.setUID(uid);
+            event.setType("t-x-d-d");
+            event.setHow("m-g");
+            event.setTime(now);
+            event.setStart(now);
+            event.setStale(now);
+            event.setPoint(new CotPoint(0, 0, 0, CotPoint.UNKNOWN, CotPoint.UNKNOWN));
+            event.setDetail(new CotDetail());
+            CotMapComponent.getInstance().getInternalDispatcher().dispatch(event, null);
         } catch (Exception ignored) {}
     }
 
@@ -632,8 +741,12 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
     private void updateLayerMarkers(QuickCaptureProject.Template template,
                                      List<ArcGisQuickCaptureClient.FeatureRecord> records) {
         // Sync confirmed — replace the temporary immediate-feedback marker
-        Marker temp = tempMarkers.remove(template.id);
-        if (temp != null) getMapView().getRootGroup().removeItem(temp);
+        String tempUid = tempMarkerUids.remove(template.id);
+        if (tempUid != null) {
+            markerObjectIds.remove(tempUid);
+            markerLayerUrls.remove(tempUid);
+            dispatchCotDelete(tempUid);
+        }
         // Remove stale synced markers for this template's layer
         String prefix = "qcl-" + template.id + "-";
         List<String> stale = new ArrayList<>();
@@ -711,8 +824,10 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         qcCount.setVisibility(View.GONE);
         for (Marker m : layerMarkers.values()) getMapView().getRootGroup().removeItem(m);
         layerMarkers.clear();
-        for (Marker m : tempMarkers.values()) getMapView().getRootGroup().removeItem(m);
-        tempMarkers.clear();
+        for (String uid : tempMarkerUids.values()) dispatchCotDelete(uid);
+        tempMarkerUids.clear();
+        markerObjectIds.clear();
+        markerLayerUrls.clear();
         checkmarks.clear();
         templateIconUris.clear();
         projectIconsetUid = null;
@@ -798,6 +913,11 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
 
     @Override public void disposeImpl() {
         cancelPlacement();
+        if (dragSyncListener != null) {
+            getMapView().getMapEventDispatcher().removeMapEventListener(
+                    MapEvent.ITEM_DRAG_DROPPED, dragSyncListener);
+            dragSyncListener = null;
+        }
         worker.shutdownNow();
         iconWorker.shutdownNow();
     }
