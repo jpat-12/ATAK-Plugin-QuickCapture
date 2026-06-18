@@ -18,6 +18,23 @@ renders their capture-button interface in an ATAK half-screen dropdown.
 - ArcGIS Feature Service `addFeatures` submission
 - Last-project restore
 
+## Screenshots
+
+**Project setup and capture buttons**
+![Project Setup and Capture Buttons](screenshots/ProjectSetupAndProjectButtons.png)
+
+**Plugin loaded with toast notification and icon placement**
+![Plugin Loaded](screenshots/PluginLoaded-FireHazardToastNotificationAndIcon.png)
+
+**Hazard toast notification and icon placement**
+![Hazard Toast and Icon](screenshots/HazardToastNotification&IconPlacement.png)
+
+**Manual drop via long-hold with toast notification**
+![Manual Drop Long-Hold](screenshots/ManualDrop-LongHold-ToastNotification.png)
+
+**Pop-up information panel**
+![Pop-up Information](screenshots/PopUpInformation.png)
+
 ## Build
 
 Copy `local.properties.example` to `local.properties` and set the paths for
