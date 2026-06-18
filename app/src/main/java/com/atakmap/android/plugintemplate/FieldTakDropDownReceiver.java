@@ -32,8 +32,7 @@ import com.atakmap.android.dropdown.DropDown.OnStateListener;
 import com.atakmap.android.ipc.AtakBroadcast;
 import com.atakmap.android.dropdown.DropDownReceiver;
 import com.atakmap.android.icons.UserIcon;
-import com.atakmap.android.icons.UserIconDatabase;
-import com.atakmap.android.icons.UserIconSet;
+import com.atakmap.android.importfiles.sort.ImportUserIconSetSort;
 import com.atakmap.android.maps.MapEvent;
 import com.atakmap.android.maps.MapEventDispatcher;
 import com.atakmap.android.maps.MapItem;
@@ -99,7 +98,6 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
     private MapEventDispatcher.MapEventDispatchListener dragSyncListener;
     private final Map<String, View> checkmarks = new LinkedHashMap<>();
     private final Map<String, String> templateIconUris = new LinkedHashMap<>();
-    // Iconset zip state — rebuilt each time a template icon is downloaded
     private String projectIconsetUid = null;
     private final Map<String, byte[]> iconsetPngBytes = new LinkedHashMap<>();  // filename → PNG
     private final Map<String, String> templateFilenames = new LinkedHashMap<>(); // templateId → filename
@@ -438,22 +436,19 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         });
     }
 
-    /** Builds the iconset ZIP bytes in memory; returns null on failure. */
     private byte[] buildIconsetZipBytes(String uid, String projectTitle) {
         if (iconsetPngBytes.isEmpty()) return null;
         try {
             String name = projectTitle != null && !projectTitle.isEmpty() ? projectTitle : "QuickCapture";
-            // Format matches ATAK's expected iconset.xml: no XML declaration, no group attribute on icons.
-            // ZIP structure: iconset.xml and QuickCapture/ at the root (no top-level UID folder).
             StringBuilder xml = new StringBuilder();
             xml.append("<iconset name=\"").append(xmlEscape(name)).append("\"")
-               .append(" uid=\"").append(xmlEscape(uid)).append("\"")
+               .append(" uid=\"").append(uid).append("\"")
                .append(" defaultGroup=\"QuickCapture\"")
                .append(" skipResize=\"false\" version=\"1\">\n");
             for (String filename : iconsetPngBytes.keySet()) {
                 xml.append("  <icon name=\"").append(xmlEscape(filename)).append("\" />\n");
             }
-            xml.append("</iconset>\n");
+            xml.append("</iconset>");
 
             ByteArrayOutputStream zipBuf = new ByteArrayOutputStream();
             try (ZipOutputStream zos = new ZipOutputStream(zipBuf)) {
@@ -472,14 +467,12 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         }
     }
 
-    /** Prompts the user to import the iconset, then writes the ZIP and imports it into ATAK's DB. */
     private void promptIconsetImport(String projectName, String uid, byte[] zipBytes) {
         new AlertDialog.Builder(getMapView().getContext())
                 .setTitle("Import Iconset")
                 .setMessage("Import \"" + projectName + "\" icons into ATAK's icon library?")
                 .setPositiveButton("Import", (d, w) -> iconWorker.execute(() -> {
                     try {
-                        // Write ZIP to /sdcard/atak/iconsets/ so it persists across restarts
                         File dir = new File(
                                 android.os.Environment.getExternalStorageDirectory(), "atak/iconsets");
                         //noinspection ResultOfMethodCallIgnored
@@ -488,32 +481,11 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
                         try (FileOutputStream fos = new FileOutputStream(zipFile)) {
                             fos.write(zipBytes);
                         }
-
-                        // REFRESH_ICONSET only refreshes the pallet UI — it does NOT trigger
-                        // import of new ZIPs. We must import into the DB directly, the same
-                        // way ATAK's "Add Iconset" button does internally.
-                        UserIconDatabase db = UserIconDatabase.instance(getMapView().getContext());
-                        try { db.removeIconSet(uid); } catch (Exception ignored) {}
-                        UserIconSet iconset = UserIconSet.loadUserIconSet(zipFile.getAbsolutePath());
-                        if (iconset != null) {
-                            db.addIconSet(iconset); // inserts iconset + icon rows, sets IDs on UserIcon objects
-                            List<UserIcon> icons = iconset.getIcons();
-                            if (icons != null) {
-                                for (UserIcon icon : icons) {
-                                    String fn = icon.getFileName();
-                                    byte[] bytes = iconsetPngBytes.get(fn);
-                                    if (bytes == null) {
-                                        // getFileName() may include group prefix
-                                        int slash = fn.lastIndexOf('/');
-                                        if (slash >= 0) bytes = iconsetPngBytes.get(fn.substring(slash + 1));
-                                    }
-                                    if (bytes == null) continue;
-                                    try { db.addIcon(icon, bytes); } catch (Exception ignored) {}
-                                }
-                            }
-                        }
-
-                        // Now refresh the pallet UI
+                        // Use ATAK's native iconset import pipeline — same code path as
+                        // the "Add Iconset" button in the Iconset Manager
+                        ImportUserIconSetSort importer =
+                                new ImportUserIconSetSort(getMapView().getContext(), false);
+                        importer.beginImport(zipFile);
                         AtakBroadcast.getInstance().sendBroadcast(
                                 new android.content.Intent("com.atakmap.app.REFRESH_ICONSET"));
                     } catch (Exception ignored) {}
@@ -532,16 +504,8 @@ public class FieldTakDropDownReceiver extends DropDownReceiver implements OnStat
         } catch (Exception ignored) {}
     }
 
-    /**
-     * Returns a stable 32-char lowercase hex UID for the iconset.
-     * ArcGIS item IDs are already 32-char hex — use them directly.
-     * For arcg.is short links (or anything else), MD5-hash the best available key
-     * so the result is always valid hex with no ambiguous characters like uppercase O.
-     */
     private static String extractIconsetUid(String source, String itemId) {
-        // ArcGIS item IDs are 32 lowercase hex chars — use as-is
         if (itemId != null && itemId.matches("[0-9a-f]{32}")) return itemId;
-        // MD5-hash the best available key → always 32 lowercase hex chars
         String key = (itemId != null && !itemId.isEmpty()) ? itemId
                    : (source != null && !source.trim().isEmpty() ? source.trim() : "quickcapture");
         try {
