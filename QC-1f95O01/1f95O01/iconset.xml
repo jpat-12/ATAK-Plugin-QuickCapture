@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iconset name="USAR - ATAK TEST" uid="1f95O01" defaultGroup="QuickCapture" skipResize="false" version="1">
+  <icon group="QuickCapture" name="INCDNT-USAR--_WHITE__SOLID__DETAIL_Animal-Hazard_256x256.png" />
+  <icon group="QuickCapture" name="hazard fire.png" />
+  <icon group="QuickCapture" name="Hazard flood.png" />
+  <icon group="QuickCapture" name="Hazardous Materials.png" />
+  <icon group="QuickCapture" name="Occupant Assisted.png" />
+  <icon group="QuickCapture" name="Occupant Rescued.png" />
+  <icon group="QuickCapture" name="Occupant Followup.png" />
+  <icon group="QuickCapture" name="Occupant Evacuated.png" />
+  <icon group="QuickCapture" name="Blocked or No Access.png" />
+  <icon group="QuickCapture" name="LZ Helibase.png" />
+</iconset>
