@@ -32,7 +32,6 @@ import com.atakmap.android.cot.CotMapComponent;
 import com.atakmap.android.dropdown.DropDown.OnStateListener;
 import com.atakmap.android.ipc.AtakBroadcast;
 import com.atakmap.android.dropdown.DropDownReceiver;
-import com.atakmap.android.icons.UserIcon;
 import com.atakmap.android.importfiles.sort.ImportUserIconSetSort;
 import com.atakmap.android.maps.MapEvent;
 import com.atakmap.android.maps.MapEventDispatcher;
@@ -445,11 +444,24 @@ public class QuickCaptureDropDownReceiver extends DropDownReceiver implements On
             }
             // Build the iconset ZIP in memory while still on the background thread
             final byte[] zipBytes = buildIconsetZipBytes(uid, proj.title);
-            // Compute sqlite:// URIs for immediate Marker icon use
+            // Write PNGs to disk so setIcon() can use file:// URIs — these work immediately
+            // without requiring the iconset to be in ATAK's DB, avoiding the race where
+            // ATAK's CoT archive processor overrides setIcon() with a dot.
+            File iconDir = new File(
+                    android.os.Environment.getExternalStorageDirectory(),
+                    "atak/tools/quickcapture/" + uid);
+            //noinspection ResultOfMethodCallIgnored
+            iconDir.mkdirs();
             Map<String, String> uris = new LinkedHashMap<>();
             for (Map.Entry<String, String> e : templateFilenames.entrySet()) {
-                uris.put(e.getKey(),
-                        UserIcon.IconsetPath + UserIcon.GetIconsetPath(uid, "QuickCapture", e.getValue()));
+                String filename = e.getValue();
+                byte[] bytes = iconsetPngBytes.get(filename);
+                if (bytes != null) {
+                    File f = new File(iconDir, filename);
+                    try (FileOutputStream fos = new FileOutputStream(f)) { fos.write(bytes); }
+                    catch (Exception ignored) {}
+                    uris.put(e.getKey(), "file://" + f.getAbsolutePath());
+                }
             }
             getMapView().post(() -> {
                 templateIconUris.putAll(uris);

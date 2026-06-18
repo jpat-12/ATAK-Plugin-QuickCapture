@@ -20,16 +20,21 @@ renders their capture-button interface in an ATAK half-screen dropdown.
 
 ## Build
 
-The local build configuration points at:
+Copy `local.properties.example` to `local.properties` and set the paths for
+your environment:
 
-- ATAK SDK: `D:\Active - Jonathan\TAK - ATAK Development\ATAK-CIV-5.6.0-SDK`
-- Android SDK: `C:\Users\thesh\AppData\Local\Android\Sdk`
-- JDK: `C:\Program Files\Android\openjdk\jdk-21.0.8`
+```properties
+sdk.dir=/path/to/android-sdk
+takrepo.url=...
+```
+
+The ATAK SDK (`main.jar`) goes in `app/libs/`. See the ATAK developer guide for
+SDK setup details.
 
 Build the debug APK:
 
 ```powershell
-.\gradlew.bat assembleCivDebug
+.\gradlew.bat CivDebug
 ```
 
 ## Remaining Native-Parity Work
